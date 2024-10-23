@@ -1,9 +1,9 @@
 use std::fmt::Debug;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Error<K>
 where
-    K: Debug,
+    K: Debug + Clone,
 {
     kind: K,
     message: String,
@@ -12,7 +12,7 @@ where
 
 impl<K> Error<K>
 where
-    K: Debug,
+    K: Debug + Clone,
 {
     pub fn new(kind: K, message: String) -> Self {
         Self {
@@ -37,8 +37,8 @@ where
 
 pub fn switch_kind<K, K1>(k: K1) -> impl FnOnce(Error<K>) -> Error<K1>
 where
-    K: Debug,
-    K1: Debug,
+    K: Debug + Clone,
+    K1: Debug + Clone,
 {
     move |e| Error::<K1> {
         kind: k,
@@ -49,7 +49,7 @@ where
 
 pub fn append_stack<K>(stack: String) -> impl FnOnce(Error<K>) -> Error<K>
 where
-    K: Debug,
+    K: Debug + Clone,
 {
     move |mut e| {
         e.stack_v.push(stack);
@@ -65,7 +65,7 @@ mod tests {
 
     use super::Error;
 
-    #[derive(Debug)]
+    #[derive(Debug, Clone)]
     enum ErrorKind {
         Other,
         NotFound,
