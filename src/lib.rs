@@ -6,19 +6,17 @@ where
     K: Debug + Clone,
 {
     kind: K,
-    message: String,
-    stack_v: Vec<String>,
+    msg_stack_v: Vec<(String, String)>,
 }
 
 impl<K> Error<K>
 where
     K: Debug + Clone,
 {
-    pub fn new(kind: K, message: String) -> Self {
+    pub fn new(kind: K) -> Self {
         Self {
             kind,
-            message,
-            stack_v: vec![],
+            msg_stack_v: vec![],
         }
     }
 
@@ -26,12 +24,8 @@ where
         &self.kind
     }
 
-    pub fn message(&self) -> &str {
-        &self.message
-    }
-
-    pub fn stack_v(&self) -> &[String] {
-        &self.stack_v
+    pub fn msg_stack_v(&self) -> &Vec<(String, String)> {
+        &self.msg_stack_v
     }
 }
 
@@ -40,19 +34,23 @@ where
     K: Debug + Clone,
     K1: Debug + Clone,
 {
-    move |e| Error::<K1> {
-        kind: k,
-        message: e.message,
-        stack_v: e.stack_v,
+    move |mut e| {
+        if let Some((message, _)) = e.msg_stack_v.first_mut() {
+            *message = format!("{:?}: {message}", e.kind);
+        }
+        Error::<K1> {
+            kind: k,
+            msg_stack_v: e.msg_stack_v,
+        }
     }
 }
 
-pub fn append_stack<K>(stack: String) -> impl FnOnce(Error<K>) -> Error<K>
+pub fn unshift_msg_stack<K>(msg: String, stack: String) -> impl FnOnce(Error<K>) -> Error<K>
 where
     K: Debug + Clone,
 {
     move |mut e| {
-        e.stack_v.push(stack);
+        e.msg_stack_v.insert(0, (msg, stack));
         e
     }
 }
@@ -61,7 +59,7 @@ where
 mod tests {
     use crate::switch_kind;
 
-    use super::append_stack;
+    use super::unshift_msg_stack;
 
     use super::Error;
 
@@ -78,9 +76,10 @@ mod tests {
                 .is_test(true)
                 .try_init();
 
-        let rs: Result<(), Error<ErrorKind>> = Err(Error::new(ErrorKind::NotFound, format!("")))
+        let rs: Result<(), Error<ErrorKind>> = Err(Error::new(ErrorKind::NotFound))
+            .map_err(unshift_msg_stack(format!("unknown"), format!("at unknown")))
             .map_err(switch_kind(ErrorKind::Other))
-            .map_err(append_stack(format!("1")));
+            .map_err(unshift_msg_stack(format!("unknown"), format!("at unknown")));
 
         let e = rs.unwrap_err();
 
